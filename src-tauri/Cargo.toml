@@ -1,0 +1,38 @@
+[package]
+name = "openwhoop-app"
+version = "0.1.0"
+description = "OpenWhoop app"
+authors = ["bWanShiTong"]
+edition = "2021"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[lib]
+# The `_lib` suffix may seem redundant but it is necessary
+# to make the lib name unique and wouldn't conflict with the bin name.
+# This seems to be only an issue on Windows, see https://github.com/rust-lang/cargo/issues/8519
+name = "openwhoop_app_lib"
+crate-type = ["staticlib", "cdylib", "rlib"]
+
+[build-dependencies]
+tauri-build = { version = "2", features = [] }
+
+[dependencies]
+tauri = { version = "2", features = [] }
+tauri-plugin-opener = "2"
+tauri-plugin-dialog = "2"
+tauri-plugin-fs = "2"
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+chrono = "0.4"
+openwhoop-entities = { version = "0.1.0", git = "https://github.com/bWanShiTong/openwhoop", branch = "feat/app-support" }
+openwhoop-codec = { version = "0.1.0", git = "https://github.com/bWanShiTong/openwhoop", branch = "feat/app-support" }
+openwhoop = { version = "0.1.0", git = "https://github.com/bWanShiTong/openwhoop", branch = "feat/app-support", features = [
+    "tauri-blec",
+] }
+btleplug = "0.12.0"
+tauri-plugin-blec = "0.8.1"
+tokio = "1.52.1"
+anyhow = "1.0.102"
+sea-orm = "1.1.20"
+strum = "0.26.3"

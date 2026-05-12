@@ -1,0 +1,38 @@
+{
+  "name": "openwhoop-app",
+  "version": "0.1.0",
+  "description": "",
+  "type": "module",
+  "scripts": {
+    "dev": "vite dev --host 0.0.0.0 --port 1420",
+    "build": "vite build",
+    "preview": "vite preview",
+    "check": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json",
+    "check:watch": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json --watch",
+    "android:dev": "bash scripts/tauri-android-dev.sh",
+    "ios:dev": "pnpm tauri ios dev",
+    "ios:build": "pnpm tauri ios build",
+    "android:keygen": "bash scripts/generate-android-keystore.sh",
+    "android:build:apk": "bash scripts/build-android-apks.sh",
+    "android:uninstall": "bash scripts/android-uninstall-package.sh com.openwhoop",
+    "android:uninstall-keep-data": "adb shell cmd package uninstall -k com.openwhoop",
+    "android:install:release": "bash scripts/android-install-apk.sh com.openwhoop release/openwhoop-app-release.apk",
+    "android:install:debug": "bash scripts/android-install-apk.sh com.openwhoop debug/openwhoop-app-debug.apk"
+  },
+  "license": "MIT",
+  "dependencies": {
+    "@tauri-apps/api": "^2",
+    "@tauri-apps/plugin-opener": "^2",
+    "bits-ui": "^2.18.1"
+  },
+  "devDependencies": {
+    "@sveltejs/adapter-static": "^3.0.6",
+    "@sveltejs/kit": "^2.9.0",
+    "@sveltejs/vite-plugin-svelte": "^5.0.0",
+    "@tauri-apps/cli": "^2",
+    "svelte": "^5.0.0",
+    "svelte-check": "^4.0.0",
+    "typescript": "~5.6.2",
+    "vite": "^6.0.3"
+  }
+}

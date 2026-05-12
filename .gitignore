@@ -1,0 +1,16 @@
+.DS_Store
+node_modules
+/build
+/.svelte-kit
+/package
+.env
+.env.*
+!.env.example
+/release.keystore
+/.android-signing.env
+/debug/
+/release/
+vite.config.js.timestamp-*
+vite.config.ts.timestamp-*
+*.sqlite
+.vscode
