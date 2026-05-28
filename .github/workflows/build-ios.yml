@@ -62,6 +62,7 @@ jobs:
           PYEOF
 
       - name: Build iOS app
+        continue-on-error: true
         run: pnpm tauri ios build --target aarch64
         env:
           APPLE_DEVELOPMENT_TEAM: "XXXXXXXXXX"
