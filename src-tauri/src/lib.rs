@@ -1,12 +1,10 @@
 #[macro_use]
 extern crate serde;
-
 mod config;
 mod error;
 mod handlers;
 mod internals;
 mod state;
-
 use crate::{
     config::{now_unix_ms, whoop_database_url},
     handlers::*,
@@ -14,7 +12,6 @@ use crate::{
 };
 use openwhoop::db::DatabaseHandler;
 use tauri::Manager;
-
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
@@ -25,7 +22,6 @@ pub fn run() {
                 whoop_database_url(&handle).unwrap(),
             ));
             app.manage(DatabaseState::new(database));
-
             match app_log_path(&handle) {
                 Ok(path) => log_info(
                     &handle,
@@ -38,13 +34,22 @@ pub fn run() {
                     err
                 ),
             }
-
+            // Initialize BLE on a background thread to avoid blocking the iOS
+            // main thread during launch (prevents 0x8BADF00D watchdog kill).
+            let ble_handle = app.handle().clone();
+            std::thread::spawn(move || {
+                if let Err(e) = ble_handle.plugin(tauri_plugin_blec::init()) {
+                    eprintln!(
+                        "[WARN][app.boot] BLE plugin initialization failed: {:?}",
+                        e
+                    );
+                }
+            });
             Ok(())
         })
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_fs::init())
-        .plugin(tauri_plugin_blec::init())
         .invoke_handler(tauri::generate_handler![
             database::export_database_copy,
             database::clear_database,
