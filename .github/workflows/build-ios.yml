@@ -32,29 +32,29 @@ jobs:
         run: cargo install tauri-cli --version "^2" --locked
 
       - name: Install frontend dependencies
-        run: pnpm install
+        run: pnpm install --config.dangerouslyAllowAllBuilds=true
 
-      - name: Build iOS app
+      - name: Build frontend
+        run: pnpm build
+
+      - name: Build iOS app (xcodebuild, signing disabled)
         run: |
-          pnpm tauri ios build --target aarch64 -- \
+          xcodebuild \
+            -workspace src-tauri/gen/apple/openwhoop-app.xcodeproj/project.xcworkspace \
+            -scheme openwhoop-app_iOS \
+            -sdk iphoneos \
+            -configuration release \
+            -archivePath "$PWD/openwhoop-app.xcarchive" \
+            archive \
             CODE_SIGNING_ALLOWED=NO \
             CODE_SIGNING_REQUIRED=NO \
             CODE_SIGN_IDENTITY="" \
-            PROVISIONING_PROFILE_SPECIFIER="" \
-            AD_HOC_CODE_SIGNING_ALLOWED=YES
+            PROVISIONING_PROFILE_SPECIFIER=""
 
-      - name: Find app and package IPA
+      - name: Package IPA
         run: |
-          # Look in DerivedData for the built .app
-          APP=$(find ~/Library/Developer/Xcode/DerivedData -name "*.app" -path "*/Release-iphoneos/*" | head -1)
-
-          # Fallback: check xcarchive
-          if [ -z "$APP" ]; then
-            ARCHIVE=$(find . -name "*.xcarchive" | head -1)
-            APP=$(find "$ARCHIVE" -name "*.app" | head -1)
-          fi
-
-          echo "Found app at: $APP"
+          APP=$(find openwhoop-app.xcarchive -name "*.app" | head -1)
+          echo "App found at: $APP"
           mkdir -p Payload
           cp -r "$APP" Payload/
           zip -r openwhoop-app.ipa Payload/
