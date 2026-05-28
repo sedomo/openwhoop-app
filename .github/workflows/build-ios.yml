@@ -1,0 +1,60 @@
+name: Build iOS IPA
+
+on:
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: macos-latest
+    timeout-minutes: 90
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install pnpm
+        run: npm install -g pnpm
+
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: aarch64-apple-ios
+
+      - name: Cache Rust dependencies
+        uses: Swatinem/rust-cache@v2
+
+      - name: Install Tauri CLI
+        run: cargo install tauri-cli --version "^2" --locked
+
+      - name: Install frontend dependencies
+        run: pnpm install
+
+      - name: Build iOS app
+        run: pnpm tauri ios build --target aarch64
+        env:
+          CODE_SIGNING_ALLOWED: "NO"
+          CODE_SIGNING_REQUIRED: "NO"
+          CODE_SIGN_IDENTITY: ""
+
+      - name: Package IPA
+        run: |
+          ARCHIVE=$(find . -name "*.xcarchive" | head -1)
+          echo "Archive: $ARCHIVE"
+          APP=$(find "$ARCHIVE/Products" -name "*.app" | head -1)
+          echo "App: $APP"
+          mkdir -p Payload
+          cp -r "$APP" Payload/
+          zip -r openwhoop-app.ipa Payload/
+          echo "IPA created successfully"
+
+      - name: Upload IPA artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: openwhoop-app-ios
+          path: openwhoop-app.ipa
+          retention-days: 7
