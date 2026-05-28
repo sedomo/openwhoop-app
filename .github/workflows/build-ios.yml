@@ -64,7 +64,7 @@ jobs:
       - name: Build iOS app
         run: pnpm tauri ios build --target aarch64
         env:
-          APPLE_DEVELOPMENT_TEAM: ""
+          APPLE_DEVELOPMENT_TEAM: "XXXXXXXXXX"
 
       - name: Find and package IPA
         run: |
