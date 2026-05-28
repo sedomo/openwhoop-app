@@ -34,30 +34,62 @@ jobs:
       - name: Install frontend dependencies
         run: pnpm install --config.dangerouslyAllowAllBuilds=true
 
-      - name: Build frontend
-        run: pnpm build
-
-      - name: Build iOS app (xcodebuild, signing disabled)
+      - name: Patch Xcode project to disable signing
         run: |
-          xcodebuild \
-            -workspace src-tauri/gen/apple/openwhoop-app.xcodeproj/project.xcworkspace \
-            -scheme openwhoop-app_iOS \
-            -sdk iphoneos \
-            -configuration release \
-            -archivePath "$PWD/openwhoop-app.xcarchive" \
-            archive \
-            CODE_SIGNING_ALLOWED=NO \
-            CODE_SIGNING_REQUIRED=NO \
-            CODE_SIGN_IDENTITY="" \
-            PROVISIONING_PROFILE_SPECIFIER=""
+          python3 << 'PYEOF'
+          import re
 
-      - name: Package IPA
+          pbxproj = 'src-tauri/gen/apple/openwhoop-app.xcodeproj/project.pbxproj'
+          with open(pbxproj, 'r') as f:
+              content = f.read()
+
+          # Clear the hardcoded development team ID
+          content = re.sub(r'DEVELOPMENT_TEAM = [A-Z0-9]+;', 'DEVELOPMENT_TEAM = "";', content)
+
+          # Switch from automatic to manual signing
+          content = content.replace('CODE_SIGN_STYLE = Automatic;', 'CODE_SIGN_STYLE = Manual;')
+
+          # Inject CODE_SIGNING_ALLOWED = NO next to every DEVELOPMENT_TEAM line
+          content = content.replace(
+              'DEVELOPMENT_TEAM = "";',
+              'CODE_SIGNING_ALLOWED = NO;\n\t\t\t\tCODE_SIGNING_REQUIRED = NO;\n\t\t\t\tDEVELOPMENT_TEAM = "";'
+          )
+
+          with open(pbxproj, 'w') as f:
+              f.write(content)
+
+          print("Signing disabled in project.pbxproj")
+          PYEOF
+
+      - name: Build iOS app
+        run: pnpm tauri ios build --target aarch64
+        env:
+          APPLE_DEVELOPMENT_TEAM: ""
+
+      - name: Find and package IPA
         run: |
-          APP=$(find openwhoop-app.xcarchive -name "*.app" | head -1)
-          echo "App found at: $APP"
-          mkdir -p Payload
-          cp -r "$APP" Payload/
-          zip -r openwhoop-app.ipa Payload/
+          # Tauri may produce an IPA directly
+          IPA=$(find . -name "*.ipa" ! -path "*/node_modules/*" | head -1)
+
+          if [ -n "$IPA" ]; then
+            echo "IPA found at: $IPA"
+            cp "$IPA" openwhoop-app.ipa
+          else
+            echo "No IPA found, packaging from .app"
+            # Check xcarchive first
+            ARCHIVE=$(find . -name "*.xcarchive" ! -path "*/node_modules/*" | head -1)
+            if [ -n "$ARCHIVE" ]; then
+              APP=$(find "$ARCHIVE" -name "*.app" ! -name "*.dSYM" | head -1)
+            else
+              # Fall back to DerivedData
+              APP=$(find ~/Library/Developer/Xcode/DerivedData -name "*.app" -path "*iphoneos*" ! -name "*.dSYM" | head -1)
+            fi
+            echo "App found at: $APP"
+            mkdir -p Payload
+            cp -r "$APP" Payload/
+            zip -r openwhoop-app.ipa Payload/
+          fi
+
           echo "IPA size: $(du -sh openwhoop-app.ipa)"
 
       - name: Upload IPA artifact
