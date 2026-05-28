@@ -15,7 +15,7 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: '20'
+          node-version: '22'
 
       - name: Install pnpm
         run: npm install -g pnpm
@@ -35,22 +35,30 @@ jobs:
         run: pnpm install
 
       - name: Build iOS app
-        run: pnpm tauri ios build --target aarch64
-        env:
-          CODE_SIGNING_ALLOWED: "NO"
-          CODE_SIGNING_REQUIRED: "NO"
-          CODE_SIGN_IDENTITY: ""
-
-      - name: Package IPA
         run: |
-          ARCHIVE=$(find . -name "*.xcarchive" | head -1)
-          echo "Archive: $ARCHIVE"
-          APP=$(find "$ARCHIVE/Products" -name "*.app" | head -1)
-          echo "App: $APP"
+          pnpm tauri ios build --target aarch64 -- \
+            CODE_SIGNING_ALLOWED=NO \
+            CODE_SIGNING_REQUIRED=NO \
+            CODE_SIGN_IDENTITY="" \
+            PROVISIONING_PROFILE_SPECIFIER="" \
+            AD_HOC_CODE_SIGNING_ALLOWED=YES
+
+      - name: Find app and package IPA
+        run: |
+          # Look in DerivedData for the built .app
+          APP=$(find ~/Library/Developer/Xcode/DerivedData -name "*.app" -path "*/Release-iphoneos/*" | head -1)
+
+          # Fallback: check xcarchive
+          if [ -z "$APP" ]; then
+            ARCHIVE=$(find . -name "*.xcarchive" | head -1)
+            APP=$(find "$ARCHIVE" -name "*.app" | head -1)
+          fi
+
+          echo "Found app at: $APP"
           mkdir -p Payload
           cp -r "$APP" Payload/
           zip -r openwhoop-app.ipa Payload/
-          echo "IPA created successfully"
+          echo "IPA size: $(du -sh openwhoop-app.ipa)"
 
       - name: Upload IPA artifact
         uses: actions/upload-artifact@v4
