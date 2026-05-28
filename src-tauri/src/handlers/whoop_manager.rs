@@ -1,6 +1,6 @@
-use std::{fs, io::ErrorKind, time::Duration};
+use std::{fs, io::ErrorKind};
 
-use openwhoop::ble::tauri_blec::{scan_tauri_blec_devices, TauriBlecDevice};
+use openwhoop::ble::tauri_blec::TauriBlecDevice;
 use openwhoop_codec::{
     constants::{WhoopGeneration, ALL_WHOOP_SERVICES},
     WhoopPacket,
@@ -245,35 +245,17 @@ pub async fn connect_handler_to_whoop_address(address: &str) -> AppResult<WhoopG
         disconnect_connected_whoop().await;
     }
 
-    let _ = handler.stop_scan().await;
-
-    // On iOS, tauri-plugin-blec loses peripheral references once a scan stops.
-    // Fix: spawn a background scan to keep the peripheral cache populated,
-    // then poll for a successful connect() while the scan is running.
-    let scan_task = tauri::async_runtime::spawn(async {
-        if let Ok(h) = tauri_plugin_blec::get_handler() {
-            let _ = scan_tauri_blec_devices(h, Duration::from_secs(15), false).await;
-        }
-    });
-
-    let mut last_err = String::from("Connection timed out");
-    for _ in 0..10 {
-        tokio::time::sleep(Duration::from_millis(800)).await;
-        match handler.connect(address, OnDisconnectHandler::None, false).await {
-            Ok(_) => {
-                let _ = handler.stop_scan().await;
-                scan_task.abort();
-                return determine_generation_from(handler).await;
-            }
-            Err(e) => {
-                last_err = e.to_string();
-            }
-        }
-    }
+    // On iOS, calling stop_scan() before connect() clears btleplug's peripheral
+    // cache, causing "no peripheral with id" errors. The scan from scan_whoops
+    // keeps running (false = don't auto-stop), so we connect while it's active,
+    // then stop the scan afterwards.
+    handler
+        .connect(address, OnDisconnectHandler::None, false)
+        .await?;
 
     let _ = handler.stop_scan().await;
-    scan_task.abort();
-    Err(AppError::from(last_err))
+
+    determine_generation_from(handler).await
 }
 
 async fn determine_generation_from(handler: &Handler) -> AppResult<WhoopGeneration> {
